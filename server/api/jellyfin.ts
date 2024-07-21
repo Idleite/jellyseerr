@@ -97,7 +97,11 @@ class JellyfinAPI extends ExternalAPI {
   private userId?: string;
   private jellyfinHost: string;
 
-  constructor(jellyfinHost: string, authToken?: string, deviceId?: string) {
+  constructor(
+    jellyfinHost: string,
+    authToken?: string | null,
+    deviceId?: string | null
+  ) {
     let authHeaderVal: string;
     if (authToken) {
       authHeaderVal = `MediaBrowser Client="Jellyseerr", Device="Jellyseerr", DeviceId="${deviceId}", Version="${getAppVersion()}", Token="${authToken}"`;
@@ -116,7 +120,7 @@ class JellyfinAPI extends ExternalAPI {
     );
 
     this.jellyfinHost = jellyfinHost;
-    this.authToken = authToken;
+    this.authToken = authToken ?? undefined;
   }
 
   public async login(

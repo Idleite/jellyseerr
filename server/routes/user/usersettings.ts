@@ -321,7 +321,13 @@ userSettingsRoutes.delete<{ id: string }>(
   '/linked-accounts/plex',
   isOwnProfileOrAdmin(),
   async (req, res, next) => {
+    const settings = getSettings();
     const userRepository = getRepository(User);
+
+    // Make sure Plex login is enabled
+    if (settings.main.mediaServerType !== MediaServerType.PLEX) {
+      return res.status(500).json({ error: 'Plex login is disabled' });
+    }
 
     try {
       const user = await userRepository.findOne({
@@ -378,8 +384,11 @@ userSettingsRoutes.post<{ username: string; password: string }>(
       return next({ status: 401, message: 'Unauthorized' });
     }
     // Make sure jellyfin login is enabled
-    if (settings.main.mediaServerType !== MediaServerType.JELLYFIN) {
-      return res.status(500).json({ error: 'Jellyfin login is disabled' });
+    if (
+      settings.main.mediaServerType !== MediaServerType.JELLYFIN &&
+      settings.main.mediaServerType !== MediaServerType.EMBY
+    ) {
+      return res.status(500).json({ error: 'Jellyfin/Emby login is disabled' });
     }
 
     // Do not allow linking of an already linked account
@@ -389,8 +398,7 @@ userSettingsRoutes.post<{ username: string; password: string }>(
       })
     ) {
       return res.status(422).json({
-        error:
-          'The specified Jellyfin account is already linked to a Jellyseerr user',
+        error: 'The specified account is already linked to a Jellyseerr user',
       });
     }
 
@@ -425,15 +433,17 @@ userSettingsRoutes.post<{ username: string; password: string }>(
         })
       ) {
         return res.status(422).json({
-          error:
-            'The specified Jellyfin account is already linked to a Jellyseerr user',
+          error: 'The specified account is already linked to a Jellyseerr user',
         });
       }
 
       const user = req.user;
 
       // valid jellyfin user found, link to current user
-      user.userType = UserType.JELLYFIN;
+      user.userType =
+        settings.main.mediaServerType === MediaServerType.EMBY
+          ? UserType.EMBY
+          : UserType.JELLYFIN;
       user.jellyfinUserId = account.User.Id;
       user.jellyfinUsername = account.User.Name;
       user.jellyfinAuthToken = account.AccessToken;
@@ -442,7 +452,7 @@ userSettingsRoutes.post<{ username: string; password: string }>(
 
       return res.status(204).send();
     } catch (e) {
-      logger.error('Failed to link Jellyfin account to user.', {
+      logger.error('Failed to link account to user.', {
         label: 'API',
         ip: req.ip,
         error: e,
@@ -463,7 +473,16 @@ userSettingsRoutes.delete<{ id: string }>(
   '/linked-accounts/jellyfin',
   isOwnProfileOrAdmin(),
   async (req, res, next) => {
+    const settings = getSettings();
     const userRepository = getRepository(User);
+
+    // Make sure jellyfin login is enabled
+    if (
+      settings.main.mediaServerType !== MediaServerType.JELLYFIN &&
+      settings.main.mediaServerType !== MediaServerType.EMBY
+    ) {
+      return res.status(500).json({ error: 'Jellyfin/Emby login is disabled' });
+    }
 
     try {
       const user = await userRepository.findOne({
